@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Montserrat', sans-serif;
+            background-image: url({{ url_for('static', filename='assets/error404_bg.jpg') }});
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .glow-text {
+            text-align: center;
+            font-size: 80px;
+            color: #ffffff;
+            text-shadow: 0 0 10px #81a6de, 0 0 20px #81a6de, 0 0 30px #81a6de, 0 0 40px #81a6de, 0 0 50px;
+        }
+
+        .subtext {
+            font-size: 64px;
+            color: #ffffff;
+            margin-top: 20px;
+        }
+
+        .return-btn {
+            background-image: linear-gradient(45deg, #FF8C8C, #FECC72);
+            color: #ffffff;
+            font-size: 25px;
+            padding: 15px 30px;
+            border: none;
+            cursor: pointer;
+            margin-top: 30px;
+            border-radius: 30px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+
+        .return-btn:hover {
+            background-color: #fff;
+            background-image: linear-gradient(45deg, #FF8C8C, #FECC72);
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="glow-text">ERROR 404</div>
+        <div class="glow-text">PAGE NOT FOUND</div>
+    </div>
+    <div class="subtext">I think you wandered off very far..........</div>
+    <a href="{{ url_for('home') }}" class="return-btn">Return to home page</a>
+</body>
+</html>

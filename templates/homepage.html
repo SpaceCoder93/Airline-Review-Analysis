@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Not Found</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Montserrat', sans-serif;
+            background-image: url({{ url_for('static', filename='assets/homepage_bg.jpg') }});
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: initial;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .glow-text {
+            text-align: center;
+            font-size: 80px;
+            color: #ffffff;
+            text-shadow: 0 0 10px #81a6de, 0 0 20px #81a6de, 0 0 30px #81a6de, 0 0 40px #81a6de, 0 0 50px;
+        }
+
+        .glow-text-big {
+            text-align: center;
+            font-size: 180px;
+            color: #ffffff;
+            text-shadow: 0 0 10px #81a6de, 0 0 20px #81a6de, 0 0 30px #81a6de, 0 0 40px #81a6de, 0 0 50px;
+        }
+
+        .airline-name-searchbox{
+            text-align: center;
+            font-size: 65px;
+            color: #ffffff;
+            background-color: #ffffff83;
+            border-radius: 50px;
+            border-color: transparent;
+            accent-color: #81a6de;
+        }
+
+        .airline-name-searchbox:focus{
+            text-align: center;
+            font-size: 65px;
+            color: #ffffff;
+            background-color: #ffffff83;
+            border-radius: 50px;
+            border-color: #ffffff;
+            border: 2px solid #ffffff;
+            outline: none;
+        }
+
+        .submit-btn {
+            background-image: linear-gradient(45deg, #FF8C8C, #FECC72);
+            color: #ffffff;
+            font-size: 50px;
+            padding: 15px 30px;
+            border: none;
+            cursor: pointer;
+            margin-top: 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #fff;
+            background-image: linear-gradient(45deg, #FF8C8C, #FECC72);
+            border-color: linear-gradient(45deg, #FF8C8C, #FECC72);
+            border: 2px solid #FF8C8C;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .airline-name-form{
+            padding-top: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="glow-text-big">A.I.R</div>
+        <div class="glow-text">Airline Insights & Reviews</div>
+    </div>
+    <form action="/analysis" method="POST" class="airline-name-form">
+        <input type="text" id="id" name="id" placeholder="Enter airline name" class="airline-name-searchbox" autocomplete="off"><br>
+        <input type="submit" value="Submit" class="submit-btn">
+    </form>
+</body>
+</html>
