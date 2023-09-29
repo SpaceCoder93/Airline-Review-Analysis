@@ -5,11 +5,11 @@ import threading
 import pandas as pd
 import seaborn as sns
 import plotly.express as px
+from flask_cors import CORS
 from textblob import TextBlob
 from bs4 import BeautifulSoup
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-from flask import Flask, jsonify
 from nltk.corpus import stopwords
 from nltk.probability import FreqDist
 from nltk.stem import WordNetLemmatizer
@@ -17,36 +17,49 @@ from sklearn.feature_extraction import text
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from sklearn.decomposition import LatentDirichletAllocation, NMF
+from flask import Flask, render_template, Response, request, abort, send_from_directory, jsonify
 
 app = Flask(__name__)
+CORS(app, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5000"])
+
 
 @app.route('/collect', methods=['GET', 'POST'])
-def collection( tup):
+def collection():
     reviews = []
     stars = []
     date = []
     country = []
-    name, pages = tup
-    for i in range(1, pages+1):
-        page = requests.get(
-            f"https://www.airlinequality.com/airline-reviews/{name}/page/{i}/?sortby=post_date%3ADesc&pagesize=100"
-        )
-        soup = BeautifulSoup(page.content, "html.parser")
-        for item in soup.find_all("div", class_="text_content"):
-            reviews.append(item.text)
-        for item in soup.find_all("div", class_="rating-10"):
-            try:
-                stars.append(item.span.text)
-            except:
-                print(f"Error on page {i}")
-        for item in soup.find_all("time"):
-            date.append(item.text)
-        for item in soup.find_all("h3"):
-            country.append(item.span.next_sibling.text.strip(" ()"))
-    stars = stars[:len(reviews)]
-    df = pd.DataFrame(
-        {"reviews": reviews, "stars": stars, "date": date, "country": country})
-    return jsonify(df.to_dict(orient='records'))
+    data = request.get_json()
+    name = data.get('name', '')
+    pages = data.get('pages', 0)
+    print(f"Milgaya data: {name}, {pages} ")
+    return (f"Milgaya data: {name}, {pages} ")
+    # for i in range(1, pages+1):
+    #     page = requests.get(
+    #         f"https://www.airlinequality.com/airline-reviews/{name}/page/{i}/?sortby=post_date%3ADesc&pagesize=100"
+    #     )
+    #     soup = BeautifulSoup(page.content, "html.parser")
+    #     for item in soup.find_all("div", class_="text_content"):
+    #         reviews.append(item.text)
+    #     for item in soup.find_all("div", class_="rating-10"):
+    #         try:
+    #             stars.append(item.span.text)
+    #         except:
+    #             print(f"Error on page {i}")
+    #     for item in soup.find_all("time"):
+    #         date.append(item.text)
+    #     for item in soup.find_all("h3"):
+    #         country.append(item.span.next_sibling.text.strip(" ()"))
+    # stars = stars[:len(reviews)]
+    # df = pd.DataFrame(
+    #     {"reviews": reviews, "stars": stars, "date": date, "country": country})
+    # data = list(df.columns)
+    # col = ""
+    # for i in data[0:-1]:
+    #     col = col + i + " | "
+    # col = col + data[-1]
+    # return jsonify({"columns": col})
+    return "Data Nhi mila"
 
 def cleaning(df):
     df['verified'] = df.reviews.str.contains("Trip Verified")
@@ -242,4 +255,4 @@ def eda():
     # word_analysis(new_words)
 
 if __name__ == '__main__':
-    app.run(port=5001, debug=True)
+    app.run(port=5500, debug=True)

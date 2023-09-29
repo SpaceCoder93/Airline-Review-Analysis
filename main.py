@@ -1,26 +1,9 @@
-import re
 import sqlite3
-import threading
-import pandas as pd
-from bs4 import BeautifulSoup
-import requests
-import matplotlib.pyplot as plt
-import seaborn as sns
-import plotly.express as px
-from wordcloud import WordCloud
-import nltk
-from nltk.probability import FreqDist
-from nltk.stem import WordNetLemmatizer
-from nltk.corpus import stopwords
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-from sklearn.feature_extraction import text
-from textblob import TextBlob
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.decomposition import LatentDirichletAllocation, NMF
 from flask import Flask, render_template, Response, request, abort, send_from_directory
+from flask_cors import CORS
 
 app = Flask(__name__)
-
+CORS(app, origins=["http://127.0.0.1:5500/collect", "http://127.0.0.1:5000"])
 class SQLQueries:
     def __init__(self):
         self.conn = sqlite3.connect("static/database/info.db")
@@ -40,8 +23,7 @@ def analysis():
         id = request.form.get('id', '')
         if int(id)<=551:
             name, site_code, pages = SQLQueries().search_name(id)
-            #threading.Thread(target=DataCollection().collection, args=[[site_code, pages]]).start()
-            return render_template('analysis.html', id=name)
+            return render_template('analysis.html', name=site_code, pages=pages)
         else:
             abort(404)
     else:
