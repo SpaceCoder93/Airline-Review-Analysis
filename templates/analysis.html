@@ -1,11 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analysing....</title>
-</head>
-<body>
-    <p>{{id}}</p>
-</body>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+        const url = 'http://127.0.0.1:5500/collect';
+        const data = {
+            name: "{{name}}",
+            pages: {{pages}}
+        };
+        console.log(data);
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text();
+        })
+        .then(text => {
+            document.getElementById('content').textContent = text;
+        })
+        .catch(error => {
+            console.log('There was a problem with the fetch operation:', error.message);
+            document.getElementById('content').textContent = 'Failed to load content.';
+        });
+    });
+    </script>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Analysing....</title>
+    </head>
+    <body>
+        <p id="content">{{id}}</p>
+    </body>
 </html>
