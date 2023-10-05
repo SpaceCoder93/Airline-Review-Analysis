@@ -1,9 +1,10 @@
+import io
 import re
 import nltk
 import requests
-import threading
 import pandas as pd
 import seaborn as sns
+import concurrent.futures
 import plotly.express as px
 from flask_cors import CORS
 from textblob import TextBlob
@@ -15,9 +16,8 @@ from nltk.probability import FreqDist
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction import text
 from sklearn.feature_extraction.text import CountVectorizer
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from sklearn.decomposition import LatentDirichletAllocation, NMF
-from flask import Flask, render_template, Response, request, abort, send_from_directory, jsonify
+from flask import Flask, Response, request, jsonify
 
 app = Flask(__name__)
 CORS(app, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5000"])
@@ -25,6 +25,7 @@ CORS(app, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5000"])
 
 @app.route('/collect', methods=['GET', 'POST'])
 def collection():
+    retdict = {}
     reviews = []
     stars = []
     date = []
@@ -32,34 +33,52 @@ def collection():
     data = request.get_json()
     name = data.get('name', '')
     pages = data.get('pages', 0)
-    print(f"Milgaya data: {name}, {pages} ")
-    return (f"Milgaya data: {name}, {pages} ")
-    # for i in range(1, pages+1):
-    #     page = requests.get(
-    #         f"https://www.airlinequality.com/airline-reviews/{name}/page/{i}/?sortby=post_date%3ADesc&pagesize=100"
-    #     )
-    #     soup = BeautifulSoup(page.content, "html.parser")
-    #     for item in soup.find_all("div", class_="text_content"):
-    #         reviews.append(item.text)
-    #     for item in soup.find_all("div", class_="rating-10"):
-    #         try:
-    #             stars.append(item.span.text)
-    #         except:
-    #             print(f"Error on page {i}")
-    #     for item in soup.find_all("time"):
-    #         date.append(item.text)
-    #     for item in soup.find_all("h3"):
-    #         country.append(item.span.next_sibling.text.strip(" ()"))
-    # stars = stars[:len(reviews)]
-    # df = pd.DataFrame(
-    #     {"reviews": reviews, "stars": stars, "date": date, "country": country})
-    # data = list(df.columns)
-    # col = ""
-    # for i in data[0:-1]:
-    #     col = col + i + " | "
-    # col = col + data[-1]
-    # return jsonify({"columns": col})
-    return "Data Nhi mila"
+    for i in range(1, pages+1):
+        page = requests.get(f"https://www.airlinequality.com/airline-reviews/{name}/page/{i}/?sortby=post_date%3ADesc&pagesize=100")
+        soup = BeautifulSoup(page.content, "html.parser")
+        for item in soup.find_all("div", class_="text_content"):
+            reviews.append(item.text)
+        for item in soup.find_all("div", class_="rating-10"):
+            try:
+                stars.append(item.span.text)
+            except:
+                print(f"Error on page {i}")
+        for item in soup.find_all("time"):
+            date.append(item.text)
+        for item in soup.find_all("h3"):
+            country.append(item.span.next_sibling.text.strip(" ()"))
+    stars = stars[:len(reviews)]
+    df = pd.DataFrame({"reviews": reviews, "stars": stars, "date": date, "country": country})
+    df = cleaning(df)
+    new_words = []
+    vect = CountVectorizer()
+    tf = vect.fit_transform(df.corpus).toarray()
+    tf_feature_names = vect.get_feature_names_out()
+    number_of_topics = 8
+    with open('stopwords.txt', 'r') as f:
+        data = f.readlines()
+        for i in data:
+            i = i.replace("\n", "")
+            new_words.append(i)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        tasks = [
+            (star_val_count, (df)),
+            (rating, (df)),
+            (country_review, (df)),
+            (country_rating, (df)),
+            (word_map, (df)),
+            (word_count, (new_words)),
+            (word_analysis, (df, new_words)),
+            (polarity_scores, (df)),
+            (latent_allocation, (number_of_topics, tf, tf_feature_names)),
+            (nmf_topic_modelling, (tf, tf_feature_names)),
+        ]
+        futures = [executor.submit(fn, *args) for fn, args in tasks]
+        results = [f.result() for f in concurrent.futures.as_completed(futures)]
+    overall_rating = df.stars.mean()
+    results.append(overall_rating)
+    return results
+
 
 def cleaning(df):
     df['verified'] = df.reviews.str.contains("Trip Verified")
@@ -84,8 +103,10 @@ def cleaning(df):
     df.drop(df[df.stars == "None"].index, axis=0, inplace=True)
     df.drop(df[df.country.isnull() == True].index, axis=0, inplace=True)
     df.reset_index(drop=True)
+    return df
 
-def get_freq_dist( new_words, number_of_ngrams):
+
+def get_freq_dist(new_words, number_of_ngrams):
     from nltk import ngrams
     ngrams = ngrams(new_words, number_of_ngrams)
     ngram_fd = FreqDist(ngrams).most_common(40)
@@ -94,15 +115,22 @@ def get_freq_dist( new_words, number_of_ngrams):
     ngram_freqdist = pd.Series(ngram_joined)
     plt.figure(figsize=(10, 10))
     ax = ngram_freqdist.plot(kind="barh")
-    plt.show()
-    return ax
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Response(buf, mimetype="image/png")
+
 
 def star_val_count(df):
     df.stars.value_counts().plot(kind="bar")
     plt.xlabel("Ratings")
     plt.ylabel("Total Number of reviews with that rating")
     plt.suptitle("Counts for each ratings")
-    plt.show()
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Response(buf, mimetype="image/png")
+
 
 def rating(df):
     df_ratings = pd.DataFrame(df.stars.value_counts())
@@ -118,7 +146,11 @@ def rating(df):
     ax.set_xlabel("Ratings")
     ax.set_ylabel("Total Number of reviews with that rating")
     ax.set_title("Counts for each ratings")
-    plt.show()
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Response(buf, mimetype="image/png")
+
 
 def country_review(df):
     df_country_review = pd.DataFrame(df.country.value_counts().head()).reset_index()
@@ -126,7 +158,11 @@ def country_review(df):
     df_country_review.columns.values[0] = 'country'
     df_country_review.plot(kind="bar", x='country')
     plt.title("Maximum number of review by country")
-    plt.show()
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Response(buf, mimetype="image/png")
+
 
 def country_rating(df):
     df_country_rating = pd.DataFrame(
@@ -139,7 +175,11 @@ def country_rating(df):
     df.date = pd.to_datetime(df.date)
     fig = px.line(df, x='date', y="stars")
     fig.update_xaxes(rangeslider_visible=True)
-    fig.show()
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Response(buf, mimetype="image/png")
+
 
 def word_map(df):
     plt.figure(figsize=(20, 10))
@@ -149,16 +189,24 @@ def word_map(df):
         " ".join(df.corpus))
     plt.imshow(wordcloud, interpolation='bilinear')
     plt.axis("off")
-    plt.show()
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Response(buf, mimetype="image/png")
 
-def word_count( new_words):
+
+def word_count(new_words):
     nlp_words = FreqDist(new_words).most_common(20)
     all_fdist = pd.Series(dict(nlp_words))
     fig, ax = plt.subplots(figsize=(15, 8))
     all_plot = sns.barplot(x=all_fdist.index, y=all_fdist.values, ax=ax)
     all_plot.bar_label(all_plot.containers[0])
     plt.xticks(rotation=30)
-    plt.show()
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Response(buf, mimetype="image/png")
+
 
 def word_analysis(df, new_words):
     get_freq_dist(new_words, 4)
@@ -172,49 +220,31 @@ def word_analysis(df, new_words):
     words_4_6 = reviews_4_6.split(" ")
     words_7_10 = reviews_7_10.split(" ")
     new_words_1_3 = [word for word in words_1_3 if word not in set(nltk.corpus.stopwords.words('english'))]
-    get_freq_dist(new_words_1_3, 4)
+    a = get_freq_dist(new_words_1_3, 4)
     new_words_4_6 = [word for word in words_4_6 if word not in set(nltk.corpus.stopwords.words('english'))]
-    get_freq_dist(new_words_4_6, 4)
+    b = get_freq_dist(new_words_4_6, 4)
     new_words_7_10 = [word for word in words_7_10 if word not in set(nltk.corpus.stopwords.words('english'))]
-    get_freq_dist(new_words_7_10, 4)
+    c = get_freq_dist(new_words_7_10, 4)
+    return [a, b, c]
+
 
 def polarity_scores(df):
     df['polarity'] = 0
     df['polarity'] = df['corpus'].apply(lambda x: TextBlob(x).sentiment.polarity)
-    print(
+    a = (
         f"{df[(df['polarity'] > -0.2) & (df['polarity'] < 0.2)].shape[0]} number of reviews between -0.2 and 0.2 polarity score")
-    print(
+    b = (
         f"{df[(df['polarity'] > -0.1) & (df['polarity'] < 0.1)].shape[0]} number of reviews between -0.1 and 0.1 polarity score")
+    return [a,b]
 
-def get_sentiment_label(corpus_text):
-    vds = SentimentIntensityAnalyzer()
-    score = vds.polarity_scores(corpus_text)['compound']
-    if score > 0.2:
-        return 1
-    elif score < 0:
-        return -1
-    else:
-        return 0
-
-def sentiment_score(df):
-    df['label'] = 0
-    df['label'] = df['corpus'].apply(get_sentiment_label)
-
-def topic_modelling(df):
-    vect = CountVectorizer()
-    tf = vect.fit_transform(df.corpus).toarray()
-    tf_feature_names = vect.get_feature_names_out()
-    number_of_topics = 8
 
 def latent_allocation( number_of_topics, tf, tf_feature_names):
     model = LatentDirichletAllocation(n_components=number_of_topics, random_state=0)
     model.fit(tf)
     topic_dict = {}
     for topic_idx, topic in enumerate(model.components_):
-        topic_dict["Topic %d words" % (topic_idx)] = ['{}'.format(tf_feature_names[i]) for i in
-                                                      topic.argsort()[:-10 - 1:-1]]
-        topic_dict["Topic %d weights" % (topic_idx)] = ['{:.1f}'.format(topic[i]) for i in
-                                                        topic.argsort()[:-10 - 1:-1]]
+        topic_dict["Topic %d words" % topic_idx] = ['{}'.format(tf_feature_names[i]) for i in topic.argsort()[:-10 - 1:-1]]
+        topic_dict["Topic %d weights" % topic_idx] = ['{:.1f}'.format(topic[i]) for i in topic.argsort()[:-10 - 1:-1]]
     df_topic = pd.DataFrame(topic_dict)
     fig, ax = plt.subplots(2, 1, figsize=(10, 10))
     ax[0].barh(df_topic['Topic 0 words'], df_topic['Topic 0 weights'], color='skyblue')
@@ -224,17 +254,19 @@ def latent_allocation( number_of_topics, tf, tf_feature_names):
     ax[1].set_title('Topic 1')
     ax[1].invert_yaxis()
     plt.tight_layout()
-    plt.show()
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Response(buf, mimetype="image/png")
+
 
 def nmf_topic_modelling( tf, tf_feature_names):
     nmf = NMF(n_components=2, init='random', random_state=0)
     nmf.fit_transform(tf)
     topic_dict = {}
     for topic_idx, topic in enumerate(nmf.components_):
-        topic_dict["Topic %d words" % (topic_idx)] = ['{}'.format(tf_feature_names[i]) for i in
-                                                      topic.argsort()[:-10 - 1:-1]]
-        topic_dict["Topic %d weights" % (topic_idx)] = ['{:.1f}'.format(topic[i]) for i in
-                                                        topic.argsort()[:-10 - 1:-1]]
+        topic_dict["Topic %d words" % topic_idx] = ['{}'.format(tf_feature_names[i]) for i in topic.argsort()[:-10 - 1:-1]]
+        topic_dict["Topic %d weights" % topic_idx] = ['{:.1f}'.format(topic[i]) for i in topic.argsort()[:-10 - 1:-1]]
     df_topic = pd.DataFrame(topic_dict)
     fig, ax = plt.subplots(2, 1, figsize=(10, 10))
     ax[0].barh(df_topic['Topic 0 words'], df_topic['Topic 0 weights'], color='skyblue')
@@ -244,15 +276,11 @@ def nmf_topic_modelling( tf, tf_feature_names):
     ax[1].set_title('Topic 1')
     ax[1].invert_yaxis()
     plt.tight_layout()
-    plt.show()
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return Response(buf, mimetype="image/png")
 
-def eda():
-    pass
-    # reviews = " ".join(df.corpus)
-    # words = reviews.split(" ")
-    # new_words = [word for word in words if word not in set(nltk.corpus.stopwords.words('english'))]
-    # word_count(new_words)
-    # word_analysis(new_words)
 
 if __name__ == '__main__':
     app.run(port=5500, debug=True)
