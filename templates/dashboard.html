@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+    <style>
+        body{
+            overflow: hidden;
+            margin: 0;
+            height: 100%;
+        }
+        P{
+            font-family: 'Courier New', Courier, monospace;
+            position: absolute;
+            color: #FFA800;
+            font-size: 32px;
+        }
+        .top-p{
+            left: 3%;
+            top: 15%;
+        }
+        .bottom-p{
+            left: 3%;
+            top: 20%;
+        }
+    </style>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            let interval = null;
+            function scrambleText(target) {
+                let iteration = 0;
+                clearInterval(interval);
+                interval = setInterval(() => {
+                    target.innerText = target.innerText
+                        .split("")
+                        .map((letter, index) => {
+                            if (index < iteration) {
+                                return target.dataset.value[index];
+                            }
+                            return letters[Math.floor(Math.random() * 26)];
+                        })
+                        .join("");
+                    if (iteration >= target.dataset.value.length) {
+                        clearInterval(interval);
+                    }
+                    iteration += 1 / 3;
+                }, 30);
+            }
+            document.querySelector("p").onmouseover = event => {
+                scrambleText(event.target);
+            }
+            setInterval(() => {
+                let target = document.querySelector("p");
+                scrambleText(target);
+            }, 4000);
+            const url = 'http://127.0.0.1:5500/collect';
+            const data = {
+                name: "{{name}}",
+                pages: {{pages}}
+            };
+            console.log(data);
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(text => {
+                document.getElementById('content').textContent = text;
+            })
+            .catch(error => {
+                console.log('There was a problem with the fetch operation:', error.message);
+                document.getElementById('content').textContent = 'Failed to load content.';
+            });
+        });
+    </script>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Analysing....</title>
+    </head>
+    <body>
+        <p class="top-p" data-value="ANALYSING....">ANALYSING....</p>
+        <p class="bottom-p" data-value="COLLECTING DATA">COLLECTING DATA</p>
+    </body>
+</html>
