@@ -1,6 +1,7 @@
 import io
 import re
 import nltk
+import base64
 import requests
 import pandas as pd
 import seaborn as sns
@@ -77,7 +78,7 @@ def collection():
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
     overall_rating = df.stars.mean()
     results.append(overall_rating)
-    return results
+    return jsonify({'list': results})
 
 
 def cleaning(df):
@@ -118,8 +119,7 @@ def get_freq_dist(new_words, number_of_ngrams):
     buf = io.BytesIO()
     plt.savefig(buf, format="png")
     buf.seek(0)
-    return Response(buf, mimetype="image/png")
-
+    return buf
 
 def star_val_count(df):
     df.stars.value_counts().plot(kind="bar")

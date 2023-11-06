@@ -21,6 +21,7 @@
             top: 20%;
         }
     </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -52,30 +53,23 @@
                 scrambleText(target);
             }, 4000);
             const url = 'http://127.0.0.1:5500/collect';
+            const url_send = 'http://127.0.0.1:5000/dashboard';
             const data = {
                 name: "{{name}}",
                 pages: {{pages}}
             };
-            console.log(data);
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.text();
-            })
-            .then(text => {
-                document.getElementById('content').textContent = text;
-            })
-            .catch(error => {
-                console.log('There was a problem with the fetch operation:', error.message);
-                document.getElementById('content').textContent = 'Failed to load content.';
+            $.post(url, data, function(response){
+                var myList = response.list;
+                $.ajax({
+                    url: url_send,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ list: myList }),
+                    dataType: 'json',
+                    success: function(response) {
+                        alert('Data sent to b.html successfully!');
+                    }
+                });
             });
         });
     </script>

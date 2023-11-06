@@ -16,6 +16,12 @@ class SQLQueries:
 def page_not_found(e):
     return render_template(r"error404.html")
 
+@app.route('/dashboard', methods=['GET', 'POST'])
+def dashboard():
+    data = request.json
+    print(data)
+    return "Data printed!", 200
+
 @app.route('/analysis', methods=['GET', 'POST'])
 def analysis():
     id = ""
